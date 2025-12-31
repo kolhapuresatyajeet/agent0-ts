@@ -8,6 +8,7 @@
 import type { IPFSHTTPClient } from 'ipfs-http-client';
 import type { RegistrationFile } from '../models/interfaces.js';
 import { IPFS_GATEWAYS, TIMEOUTS } from '../utils/constants.js';
+import { parseAgentId } from '../utils/id-format.js';
 
 export interface IPFSClientConfig {
   url?: string; // IPFS node URL (e.g., "http://localhost:5001")
@@ -391,7 +392,7 @@ export class IPFSClient {
         ? `eip155:${chainId}:${identityRegistryAddress}`
         : `eip155:1:{identityRegistry}`;
       registrations.push({
-        agentId: parseInt(tokenId, 10),
+        agentId: parsedTokenId,
         agentRegistry,
       });
     }
