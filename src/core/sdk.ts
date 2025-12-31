@@ -12,12 +12,11 @@ import type {
   RegistrationFile,
   Endpoint,
 } from '../models/interfaces.js';
-import type { AgentRegistrationFile as SubgraphRegistrationFile } from '../models/generated/subgraph-types.js';
 import type { AgentId, ChainId, Address, URI } from '../models/types.js';
 import { EndpointType, TrustModel } from '../models/enums.js';
 import { formatAgentId, parseAgentId } from '../utils/id-format.js';
 import { IPFS_GATEWAYS, TIMEOUTS } from '../utils/constants.js';
-import { Web3Client, type TransactionOptions, type Web3ClientOptions } from './web3-client.js';
+import { Web3Client, type Web3ClientOptions } from './web3-client.js';
 import { IPFSClient, type IPFSClientConfig } from './ipfs-client.js';
 import { SubgraphClient } from './subgraph-client.js';
 import { FeedbackManager } from './feedback-manager.js';
@@ -33,7 +32,7 @@ import {
 
 /**
  * SDK configuration options
- * 
+ *
  * Backend usage (with private key):
  * @example
  * const sdk = new SDK({
@@ -41,11 +40,11 @@ import {
  *   rpcUrl: 'https://sepolia.infura.io/v3/YOUR_KEY',
  *   signer: process.env.PRIVATE_KEY,
  * });
- * 
+ *
  * Frontend usage (with browser wallet):
  * @example
  * import { connectBrowserWallet } from '@agent0/sdk';
- * 
+ *
  * const { provider, signer, chainId } = await connectBrowserWallet();
  * const sdk = new SDK({
  *   chainId,
@@ -58,36 +57,36 @@ export interface SDKConfig {
    * Chain ID for the network
    */
   chainId: ChainId;
-  
+
   /**
    * RPC URL for the network
    * Required for backend usage, optional for frontend when provider is supplied
    */
   rpcUrl?: string;
-  
+
   /**
    * External provider (BrowserProvider for frontend, JsonRpcProvider for backend)
    * When provided, rpcUrl becomes optional
    */
   provider?: Provider | BrowserProvider;
-  
+
   /**
    * Private key string, ethers Wallet, or Signer for signing transactions
    * Optional for read-only operations
    */
   signer?: string | ethers.Wallet | ethers.Signer;
-  
+
   /**
    * Override default registry addresses per chain
    */
   registryOverrides?: Record<ChainId, Record<string, Address>>;
-  
+
   // IPFS configuration
   ipfs?: 'node' | 'filecoinPin' | 'pinata';
   ipfsNodeUrl?: string;
   filecoinPrivateKey?: string;
   pinataJwt?: string;
-  
+
   // Subgraph configuration
   subgraphUrl?: string;
   subgraphOverrides?: Record<ChainId, string>;
@@ -202,7 +201,9 @@ export class SDK {
       ipfsConfig.pinataEnabled = true;
       ipfsConfig.pinataJwt = config.pinataJwt;
     } else {
-      throw new Error(`Invalid ipfs value: ${config.ipfs}. Must be 'node', 'filecoinPin', or 'pinata'`);
+      throw new Error(
+        `Invalid ipfs value: ${config.ipfs}. Must be 'node', 'filecoinPin', or 'pinata'`
+      );
     }
 
     return new IPFSClient(ipfsConfig);
@@ -354,7 +355,7 @@ export class SDK {
     } else {
       registrationFile = await this._loadRegistrationFile(tokenUri);
     }
-    
+
     registrationFile.agentId = agentId;
     registrationFile.agentURI = tokenUri || undefined;
 
@@ -370,7 +371,7 @@ export class SDK {
     // If no colon, assume it's just tokenId on default chain
     let parsedChainId: number;
     let formattedAgentId: string;
-    
+
     if (agentId.includes(':')) {
       const parsed = parseAgentId(agentId);
       parsedChainId = parsed.chainId;
@@ -380,19 +381,21 @@ export class SDK {
       parsedChainId = this._chainId;
       formattedAgentId = formatAgentId(this._chainId, parseInt(agentId, 10));
     }
-    
+
     // Determine which chain to query
     const targetChainId = parsedChainId !== this._chainId ? parsedChainId : undefined;
-    
+
     // Get subgraph client for the target chain (or use default)
     const subgraphClient = targetChainId
       ? this.getSubgraphClient(targetChainId)
       : this._subgraphClient;
-    
+
     if (!subgraphClient) {
-      throw new Error(`Subgraph client required for getAgent on chain ${targetChainId || this._chainId}`);
+      throw new Error(
+        `Subgraph client required for getAgent on chain ${targetChainId || this._chainId}`
+      );
     }
-    
+
     return subgraphClient.getAgentById(formattedAgentId);
   }
 
@@ -464,7 +467,10 @@ export class SDK {
   /**
    * Transfer agent ownership
    */
-  async transferAgent(agentId: AgentId, newOwner: Address): Promise<{
+  async transferAgent(
+    agentId: AgentId,
+    newOwner: Address
+  ): Promise<{
     txHash: string;
     from: Address;
     to: Address;
@@ -560,7 +566,11 @@ export class SDK {
   /**
    * Read feedback
    */
-  async getFeedback(agentId: AgentId, clientAddress: Address, feedbackIndex: number): Promise<Feedback> {
+  async getFeedback(
+    agentId: AgentId,
+    clientAddress: Address,
+    feedbackIndex: number
+  ): Promise<Feedback> {
     return this._feedbackManager.getFeedback(agentId, clientAddress, feedbackIndex);
   }
 
@@ -598,7 +608,13 @@ export class SDK {
     // Update feedback manager with registries
     this._feedbackManager.setReputationRegistry(this.getReputationRegistry());
 
-    return this._feedbackManager.appendResponse(agentId, clientAddress, feedbackIndex, response.uri, response.hash);
+    return this._feedbackManager.appendResponse(
+      agentId,
+      clientAddress,
+      feedbackIndex,
+      response.uri,
+      response.hash
+    );
   }
 
   /**
@@ -657,8 +673,8 @@ export class SDK {
           rawData = await this._ipfsClient.getJson(cid);
         } else {
           // Fallback to HTTP gateways if no IPFS client configured
-          const gateways = IPFS_GATEWAYS.map(gateway => `${gateway}${cid}`);
-          
+          const gateways = IPFS_GATEWAYS.map((gateway) => `${gateway}${cid}`);
+
           let fetched = false;
           for (const gateway of gateways) {
             try {
@@ -674,7 +690,7 @@ export class SDK {
               continue;
             }
           }
-          
+
           if (!fetched) {
             throw new Error('Failed to retrieve data from all IPFS gateways');
           }
@@ -687,7 +703,9 @@ export class SDK {
         rawData = await response.json();
       } else if (tokenUri.startsWith('data:')) {
         // Data URIs are not supported
-        throw new Error(`Data URIs are not supported. Expected HTTP(S) or IPFS URI, got: ${tokenUri}`);
+        throw new Error(
+          `Data URIs are not supported. Expected HTTP(S) or IPFS URI, got: ${tokenUri}`
+        );
       } else if (!tokenUri || tokenUri.trim() === '') {
         // Empty URI - return empty registration file (agent registered without URI)
         return this._createEmptyRegistrationFile();
@@ -715,13 +733,13 @@ export class SDK {
   private _transformRegistrationFile(rawData: Record<string, unknown>): RegistrationFile {
     const endpoints = this._transformEndpoints(rawData);
     const { walletAddress, walletChainId } = this._extractWalletInfo(rawData);
-    
+
     // Extract trust models with proper type checking
     const trustModels: (TrustModel | string)[] = Array.isArray(rawData.supportedTrust)
       ? rawData.supportedTrust
       : Array.isArray(rawData.trustModels)
-      ? rawData.trustModels
-      : [];
+        ? rawData.trustModels
+        : [];
 
     return {
       name: typeof rawData.name === 'string' ? rawData.name : '',
@@ -729,14 +747,22 @@ export class SDK {
       image: typeof rawData.image === 'string' ? rawData.image : undefined,
       endpoints,
       trustModels,
-      owners: Array.isArray(rawData.owners) ? rawData.owners.filter((o): o is Address => typeof o === 'string') : [],
-      operators: Array.isArray(rawData.operators) ? rawData.operators.filter((o): o is Address => typeof o === 'string') : [],
+      owners: Array.isArray(rawData.owners)
+        ? rawData.owners.filter((o): o is Address => typeof o === 'string')
+        : [],
+      operators: Array.isArray(rawData.operators)
+        ? rawData.operators.filter((o): o is Address => typeof o === 'string')
+        : [],
       active: typeof rawData.active === 'boolean' ? rawData.active : false,
       x402support: typeof rawData.x402support === 'boolean' ? rawData.x402support : false,
-      metadata: typeof rawData.metadata === 'object' && rawData.metadata !== null && !Array.isArray(rawData.metadata) 
-        ? rawData.metadata as Record<string, unknown>
-        : {},
-      updatedAt: typeof rawData.updatedAt === 'number' ? rawData.updatedAt : Math.floor(Date.now() / 1000),
+      metadata:
+        typeof rawData.metadata === 'object' &&
+        rawData.metadata !== null &&
+        !Array.isArray(rawData.metadata)
+          ? (rawData.metadata as Record<string, unknown>)
+          : {},
+      updatedAt:
+        typeof rawData.updatedAt === 'number' ? rawData.updatedAt : Math.floor(Date.now() / 1000),
       walletAddress,
       walletChainId,
     };
@@ -747,11 +773,11 @@ export class SDK {
    */
   private _transformEndpoints(rawData: Record<string, unknown>): Endpoint[] {
     const endpoints: Endpoint[] = [];
-    
+
     if (!rawData.endpoints || !Array.isArray(rawData.endpoints)) {
       return endpoints;
     }
-    
+
     for (const ep of rawData.endpoints) {
       // Check if it's already in the new format
       if (ep.type && ep.value !== undefined) {
@@ -768,14 +794,17 @@ export class SDK {
         }
       }
     }
-    
+
     return endpoints;
   }
 
   /**
    * Transform a single endpoint from legacy format
    */
-  private _transformEndpointLegacy(ep: Record<string, unknown>, rawData: Record<string, unknown>): Endpoint | null {
+  private _transformEndpointLegacy(
+    ep: Record<string, unknown>,
+    rawData: Record<string, unknown>
+  ): Endpoint | null {
     const name = typeof ep.name === 'string' ? ep.name : '';
     const value = typeof ep.endpoint === 'string' ? ep.endpoint : '';
     const version = typeof ep.version === 'string' ? ep.version : undefined;
@@ -783,18 +812,18 @@ export class SDK {
     // Map endpoint names to types using case-insensitive lookup
     const nameLower = name.toLowerCase();
     const ENDPOINT_TYPE_MAP: Record<string, EndpointType> = {
-      'mcp': EndpointType.MCP,
-      'a2a': EndpointType.A2A,
-      'ens': EndpointType.ENS,
-      'did': EndpointType.DID,
-      'agentwallet': EndpointType.WALLET,
-      'wallet': EndpointType.WALLET,
+      mcp: EndpointType.MCP,
+      a2a: EndpointType.A2A,
+      ens: EndpointType.ENS,
+      did: EndpointType.DID,
+      agentwallet: EndpointType.WALLET,
+      wallet: EndpointType.WALLET,
     };
 
     let type: string;
     if (ENDPOINT_TYPE_MAP[nameLower]) {
       type = ENDPOINT_TYPE_MAP[nameLower];
-      
+
       // Special handling for wallet endpoints - parse eip155 format
       if (type === EndpointType.WALLET) {
         const walletMatch = value.match(/eip155:(\d+):(0x[a-fA-F0-9]{40})/);
@@ -817,7 +846,10 @@ export class SDK {
   /**
    * Extract wallet address and chain ID from raw data
    */
-  private _extractWalletInfo(rawData: Record<string, unknown>): { walletAddress?: string; walletChainId?: number } {
+  private _extractWalletInfo(rawData: Record<string, unknown>): {
+    walletAddress?: string;
+    walletChainId?: number;
+  } {
     // Priority: extracted from endpoints > direct fields
     if (typeof rawData._walletAddress === 'string' && typeof rawData._walletChainId === 'number') {
       return {
@@ -825,14 +857,14 @@ export class SDK {
         walletChainId: rawData._walletChainId,
       };
     }
-    
+
     if (typeof rawData.walletAddress === 'string' && typeof rawData.walletChainId === 'number') {
       return {
         walletAddress: rawData.walletAddress,
         walletChainId: rawData.walletChainId,
       };
     }
-    
+
     return {};
   }
 
@@ -849,4 +881,3 @@ export class SDK {
     return this._subgraphClient;
   }
 }
-

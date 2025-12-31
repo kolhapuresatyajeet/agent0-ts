@@ -3,16 +3,17 @@
  */
 
 import { ethers } from 'ethers';
-import type {
-  Feedback,
-  SearchFeedbackParams,
-  FeedbackIdTuple,
-} from '../models/interfaces.js';
-import type { AgentId, Address, URI, Timestamp, IdemKey } from '../models/types.js';
+import type { Feedback, SearchFeedbackParams, FeedbackIdTuple } from '../models/interfaces.js';
+import type { AgentId, Address, URI, IdemKey } from '../models/types.js';
 import type { Web3Client } from './web3-client.js';
 import type { IPFSClient } from './ipfs-client.js';
 import type { SubgraphClient } from './subgraph-client.js';
-import { parseAgentId, formatAgentId, formatFeedbackId, parseFeedbackId } from '../utils/id-format.js';
+import {
+  parseAgentId,
+  formatAgentId,
+  formatFeedbackId,
+  parseFeedbackId,
+} from '../utils/id-format.js';
 import { DEFAULTS } from '../utils/constants.js';
 
 export interface FeedbackAuth {
@@ -320,12 +321,18 @@ export class FeedbackManager {
     const tag1Value = typeof feedbackFile.tag1 === 'string' ? feedbackFile.tag1 : undefined;
     const tag2Value = typeof feedbackFile.tag2 === 'string' ? feedbackFile.tag2 : undefined;
     const textValue = typeof feedbackFile.text === 'string' ? feedbackFile.text : undefined;
-    const contextValue = feedbackFile.context && typeof feedbackFile.context === 'object' && !Array.isArray(feedbackFile.context)
-      ? feedbackFile.context as Record<string, any>
-      : undefined;
-    const proofOfPaymentValue = feedbackFile.proofOfPayment && typeof feedbackFile.proofOfPayment === 'object' && !Array.isArray(feedbackFile.proofOfPayment)
-      ? feedbackFile.proofOfPayment as Record<string, any>
-      : undefined;
+    const contextValue =
+      feedbackFile.context &&
+      typeof feedbackFile.context === 'object' &&
+      !Array.isArray(feedbackFile.context)
+        ? (feedbackFile.context as Record<string, any>)
+        : undefined;
+    const proofOfPaymentValue =
+      feedbackFile.proofOfPayment &&
+      typeof feedbackFile.proofOfPayment === 'object' &&
+      !Array.isArray(feedbackFile.proofOfPayment)
+        ? (feedbackFile.proofOfPayment as Record<string, any>)
+        : undefined;
 
     return {
       id: [parsedId.agentId, parsedId.clientAddress, parsedId.feedbackIndex] as FeedbackIdTuple,
@@ -410,22 +417,20 @@ export class FeedbackManager {
     // Determine which subgraph client to use based on agentId chainId
     let subgraphClientToUse = this.subgraphClient;
     let formattedAgents: string[] | undefined;
-    
+
     // If agents are specified, check if they have chainId prefixes
     if (params.agents && params.agents.length > 0 && this.getSubgraphClientForChain) {
       // Parse first agentId to determine chain
       const firstAgentId = params.agents[0];
       let chainId: number | undefined;
-      let fullAgentId: string;
-      
+
       if (firstAgentId.includes(':')) {
         const parsed = parseAgentId(firstAgentId);
         chainId = parsed.chainId;
-        fullAgentId = firstAgentId;
         // Get subgraph client for the specified chain
         subgraphClientToUse = this.getSubgraphClientForChain(chainId);
         // Format all agentIds to ensure they have chainId prefix
-        formattedAgents = params.agents.map(agentId => {
+        formattedAgents = params.agents.map((agentId) => {
           if (agentId.includes(':')) {
             return agentId;
           } else {
@@ -437,7 +442,7 @@ export class FeedbackManager {
         // Use default chain - format agentIds with default chainId
         chainId = this.defaultChainId;
         if (this.defaultChainId !== undefined) {
-          formattedAgents = params.agents.map(agentId => {
+          formattedAgents = params.agents.map((agentId) => {
             if (agentId.includes(':')) {
               return agentId;
             } else {
@@ -499,7 +504,12 @@ export class FeedbackManager {
         feedbackIdx = 1;
       }
 
-      const feedback = this._mapSubgraphFeedbackToModel(fbData, agentIdStr, clientAddr, feedbackIdx);
+      const feedback = this._mapSubgraphFeedbackToModel(
+        fbData,
+        agentIdStr,
+        clientAddr,
+        feedbackIdx
+      );
       feedbacks.push(feedback);
     }
 
@@ -551,9 +561,10 @@ export class FeedbackManager {
     let context: Record<string, any> | undefined;
     if (feedbackFile.context) {
       try {
-        context = typeof feedbackFile.context === 'string'
-          ? JSON.parse(feedbackFile.context)
-          : feedbackFile.context;
+        context =
+          typeof feedbackFile.context === 'string'
+            ? JSON.parse(feedbackFile.context)
+            : feedbackFile.context;
       } catch {
         context = { raw: feedbackFile.context };
       }
@@ -565,13 +576,18 @@ export class FeedbackManager {
       id,
       agentId,
       reviewer: clientAddress,
-      score: feedbackData.score !== undefined && feedbackData.score !== null ? Number(feedbackData.score) : undefined,
+      score:
+        feedbackData.score !== undefined && feedbackData.score !== null
+          ? Number(feedbackData.score)
+          : undefined,
       tags,
       text: feedbackFile.text || undefined,
       context,
       proofOfPayment,
       fileURI: feedbackData.feedbackUri || undefined,
-      createdAt: feedbackData.createdAt ? parseInt(feedbackData.createdAt, 10) : Math.floor(Date.now() / 1000),
+      createdAt: feedbackData.createdAt
+        ? parseInt(feedbackData.createdAt, 10)
+        : Math.floor(Date.now() / 1000),
       answers,
       isRevoked: feedbackData.isRevoked || false,
       capability: feedbackFile.capability || undefined,
@@ -765,9 +781,9 @@ export class FeedbackManager {
     let chainId: number | undefined;
     let fullAgentId: string;
     let tokenId: number;
-    
+
     let subgraphClient: SubgraphClient | undefined;
-    
+
     if (agentId.includes(':')) {
       const parsed = parseAgentId(agentId);
       chainId = parsed.chainId;
@@ -797,49 +813,49 @@ export class FeedbackManager {
         // Use subgraph to calculate reputation
         // Query feedback for this agent
         const feedbacksData = await subgraphClient.searchFeedback(
-            {
-              agents: [fullAgentId],
-            },
-            1000, // first
-            0, // skip
-            'createdAt',
-            'desc'
-          );
+          {
+            agents: [fullAgentId],
+          },
+          1000, // first
+          0, // skip
+          'createdAt',
+          'desc'
+        );
 
-          // Filter by tags if provided
-          let filteredFeedbacks = feedbacksData;
-          if (tag1 || tag2) {
-            filteredFeedbacks = feedbacksData.filter((fb: any) => {
-              const fbTag1 = fb.tag1 || '';
-              const fbTag2 = fb.tag2 || '';
-              if (tag1 && tag2) {
-                return (fbTag1 === tag1 && fbTag2 === tag2) || (fbTag1 === tag2 && fbTag2 === tag1);
-              } else if (tag1) {
-                return fbTag1 === tag1 || fbTag2 === tag1;
-              } else if (tag2) {
-                return fbTag1 === tag2 || fbTag2 === tag2;
-              }
-              return true;
-            });
-          }
-
-          // Filter out revoked feedback
-          const validFeedbacks = filteredFeedbacks.filter((fb: any) => !fb.isRevoked);
-
-          if (validFeedbacks.length > 0) {
-            const scores = validFeedbacks
-              .map((fb: any) => fb.score)
-              .filter((score: any) => score !== null && score !== undefined && score > 0);
-            
-            if (scores.length > 0) {
-              const sum = scores.reduce((a: number, b: number) => a + b, 0);
-              const averageScore = sum / scores.length;
-              return {
-                count: validFeedbacks.length,
-                averageScore: Math.round(averageScore * 100) / 100, // Round to 2 decimals
-              };
+        // Filter by tags if provided
+        let filteredFeedbacks = feedbacksData;
+        if (tag1 || tag2) {
+          filteredFeedbacks = feedbacksData.filter((fb: any) => {
+            const fbTag1 = fb.tag1 || '';
+            const fbTag2 = fb.tag2 || '';
+            if (tag1 && tag2) {
+              return (fbTag1 === tag1 && fbTag2 === tag2) || (fbTag1 === tag2 && fbTag2 === tag1);
+            } else if (tag1) {
+              return fbTag1 === tag1 || fbTag2 === tag1;
+            } else if (tag2) {
+              return fbTag1 === tag2 || fbTag2 === tag2;
             }
+            return true;
+          });
+        }
+
+        // Filter out revoked feedback
+        const validFeedbacks = filteredFeedbacks.filter((fb: any) => !fb.isRevoked);
+
+        if (validFeedbacks.length > 0) {
+          const scores = validFeedbacks
+            .map((fb: any) => fb.score)
+            .filter((score: any) => score !== null && score !== undefined && score > 0);
+
+          if (scores.length > 0) {
+            const sum = scores.reduce((a: number, b: number) => a + b, 0);
+            const averageScore = sum / scores.length;
+            return {
+              count: validFeedbacks.length,
+              averageScore: Math.round(averageScore * 100) / 100, // Round to 2 decimals
+            };
           }
+        }
 
         return { count: 0, averageScore: 0 };
       } catch (error) {
@@ -854,11 +870,15 @@ export class FeedbackManager {
 
     // For blockchain query, we need the chain to match the SDK's default chain
     // If chainId is specified and different, we can't use blockchain query
-    if (chainId !== undefined && this.defaultChainId !== undefined && chainId !== this.defaultChainId) {
+    if (
+      chainId !== undefined &&
+      this.defaultChainId !== undefined &&
+      chainId !== this.defaultChainId
+    ) {
       throw new Error(
         `Blockchain reputation summary not supported for chain ${chainId}. ` +
-        `SDK is configured for chain ${this.defaultChainId}. ` +
-        `Use subgraph-based summary instead.`
+          `SDK is configured for chain ${this.defaultChainId}. ` +
+          `Use subgraph-based summary instead.`
       );
     }
 
@@ -896,4 +916,3 @@ export class FeedbackManager {
     }
   }
 }
-
